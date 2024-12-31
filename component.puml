@@ -1,0 +1,92 @@
+@startuml
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Component.puml
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Container.puml
+HIDE_STEREOTYPE()
+title API Application - Component Diagram with Message Queue for Synchronizing ATM and Online Transactions
+
+' Define external systems (entry points in the first layer)
+' Customer and Admin SPAs delivered to browsers
+    Container(CustomerSPA, "Customer SPA", "Container: JavaScript and React.js", "Provides all internet banking system functionality and permissions to customers via web browser", $sprite="react")
+    Container(AdminSPA, "Admin SPA", "Container: JavaScript and React.js", "Provides all internet banking system functionality and permissions to admins via web browser", $sprite="react")
+
+Container(ATMInterface, "ATM System", "Container: HTML/CSS/JavaScript", "Handles cash withdrawals, deposits, balance inquiries, PIN changes, and printing operations", $sprite="desktop")
+
+' Container Boundary for the Spring Boot Backend API
+Container_Boundary(apiapp, "API Application (Spring Boot Backend)") {
+    ' Group controllers in the same layer
+    Component(ATMOperationsController, "ATMOperationsController", "Component:Spring Rest Controller", "Handles ATM operations management through API requests")
+    Component(AccountManagementController, "AccountManagementController", "Component:Spring Rest Controller", "Handles customer account-related API requests")
+    Component(AuthenticationController, "AuthenticationController", "Component:Spring Rest Controller", "Handles authentication and authorization API requests")
+    Component(TransactionProcessingController, "TransactionProcessingController", "Component:Spring Rest Controller", "Handles transaction-related API requests")
+    Component(ReportingController, "ReportingController", "Component:Spring Rest Controller", "Handles administrative reporting API requests")
+    
+    
+    ' Services layer
+    Component(BankingServiceLayer, "BankingServiceLayer", "Component: Spring Service", "Implements core business logic for banking operations (Domain layer)")
+    
+    ' Message Queue for handling transactions and other operations
+    ComponentQueue(TransactionQueue, "TransactionQueue", "Component: Message Queue", "Asynchronous transaction synchronization using RabbitMQ")
+
+    ' Repository layer
+    Component(AccountDataRepository, "AccountRepository", "Component : Spring Repository", "Manages data access for customer accounts")
+    Component(TransactionDataRepository, "TransactionRepository", "Component : Spring Repository", "Handles data access for transactions")
+    Component(LogsDataRepository, "LogsRepository", "Component : Spring Repository", "Stores and retrieves system activity logs")
+    Component(AuditDataRepository, "AuditRepository", "Component : Spring Repository", "Maintains audit trails for compliance and monitoring")
+    Component(ReportDataRepository, "ReportRepository", "Component : Spring Repository", "Manages data for report generation and retrieval")
+    Component(UserDataRepository, "UserRepository", "Component : Spring Repository", "Handles data access for users")
+    
+    ' Caching Layer for JWT tokens
+    Component(JWTCache, "JWTCache", "Component :Redis Cache", "Stores JWT tokens for fast authentication")
+}
+
+' Databases
+    ContainerDb(PostgreSQLDatabase, "Relational Database", "Container: PostgreSQL", "stores user accounts, customer data,hashed authentication credential, and sensitive information etc", $sprite="PostgreSQL")
+    ContainerDb(CassandraDatabase, "NoSQL Database", "Container: Cassandra", "Stores  logs and audit etc", $sprite="cassandra")
+Lay_L(TransactionProcessingController, AccountManagementController)
+Lay_R(AuthenticationController, TransactionProcessingController)
+
+' Relationships
+Rel_D(CustomerSPA, AuthenticationController, "Makes API calls to", "HTTPS, JSON")
+Rel_D(CustomerSPA, AccountManagementController, "Makes API calls to", "HTTPS, JSON")
+Rel_D(CustomerSPA, TransactionProcessingController, "Makes API calls to", "HTTPS, JSON")
+
+Rel_D(AdminSPA, AuthenticationController, "Makes API calls to", "HTTPS, JSON")
+Rel_D(AdminSPA, ReportingController, "Makes API calls to", "HTTPS, JSON")
+Rel_D(AdminSPA, TransactionProcessingController, "Makes API calls to", "HTTPS, JSON")
+
+Rel_D(ATMInterface, ATMOperationsController, "Makes API calls to", "NDC, JSON")
+Rel_D(ATMInterface, AuthenticationController, "Makes API calls to", "NDC, JSON")
+
+Rel_D(ATMOperationsController, BankingServiceLayer, "Uses")
+Rel_D(AccountManagementController, BankingServiceLayer, "Uses")
+Rel_D(TransactionProcessingController, BankingServiceLayer, "Uses")
+Rel_D(ReportingController, BankingServiceLayer, "Uses")
+Rel_D(AuthenticationController, BankingServiceLayer, "Uses")
+
+Rel_D(BankingServiceLayer, AccountDataRepository, "Uses")
+Rel_D(BankingServiceLayer, TransactionDataRepository, "Uses")
+Rel_D(BankingServiceLayer, LogsDataRepository, "Uses")
+Rel_D(BankingServiceLayer, AuditDataRepository, "Uses")
+Rel_D(BankingServiceLayer, ReportDataRepository, "Uses")
+Rel_D(BankingServiceLayer, UserDataRepository, "Uses")
+
+' Adding Message Queue for asynchronous handling
+Rel_D(TransactionProcessingController, TransactionQueue, "Sends transaction requests")
+Rel_D(ATMOperationsController, TransactionQueue, "Sends ATM transaction requests")
+Rel_D(TransactionQueue, BankingServiceLayer, "Processes queued transactions and syncs ATM and Online transactions")
+
+' Databases Relationships with Repositories
+Rel_D(AccountDataRepository, PostgreSQLDatabase, "Write/read account data from", "PostgreSQL, SQL")
+Rel_D(TransactionDataRepository, PostgreSQLDatabase, "Write/read transaction data from", "PostgreSQL, SQL")
+Rel_D(LogsDataRepository, CassandraDatabase, "Write/read logs from", "Cassandra, CQL")
+Rel_D(AuditDataRepository, CassandraDatabase, "Write/read audit logs from", "Cassandra, CQL")
+Rel_D(ReportDataRepository, PostgreSQLDatabase, "Write/read report data from", "PostgreSQL, SQL")
+Rel_D(UserDataRepository, PostgreSQLDatabase, "Write/read user data from", "PostgreSQL, SQL")
+
+' Relationships with JWT Cache
+
+Rel_L(BankingServiceLayer, JWTCache, "Validates JWT tokens for service layer", "Redis")
+
+
+SHOW_FLOATING_LEGEND()
+@enduml

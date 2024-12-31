@@ -1,0 +1,80 @@
+@startuml
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Container.puml
+
+' Include Devicons and FontAwesome sprite libraries
+!define DEVICONS https://raw.githubusercontent.com/tupadr3/plantuml-icon-font-sprites/master/devicons
+!define FONTAWESOME https://raw.githubusercontent.com/tupadr3/plantuml-icon-font-sprites/master/font-awesome-5
+!include DEVICONS/react.puml
+!include DEVICONS/java.puml
+!include DEVICONS/mysql.puml
+!include FONTAWESOME/users.puml
+!include FONTAWESOME/envelope.puml
+!include FONTAWESOME/desktop.puml
+
+LAYOUT_WITH_LEGEND()
+
+title Container Diagram for Bank System with Spring Boot and React.js
+
+' Define external users
+Person(customer, "Customer", "A customer of the bank with a personal bank account")
+Person(admin, "Bank Administrator", "A bank employee with special access and permissions")
+
+' ATM System
+Container(atmApp, "ATM System", "Container: HTML/CSS/JavaScript", "Handles cash withdrawals, deposits, balance inquiries, PIN changes, and printing operations", $sprite="desktop")
+
+' Define internal system components within a boundary
+System_Boundary(bankingSystem, "Bank System") {
+    ' Web Application (Static content delivery)
+    Container(webapp, "Web Application", "Container: Java and Spring", "Delivers static content and the internet banking customer/admin SPAs", $sprite="spring")
+
+    ' Customer and Admin SPAs delivered to browsers
+    Container(customerSPA, "Customer SPA", "Container: JavaScript and React.js", "Provides all internet banking system functionality and permissions to customers via web browser", $sprite="react")
+    Container(adminSPA, "Admin SPA", "Container: JavaScript and React.js", "Provides all internet banking system functionality and permissions to admins via web browser", $sprite="react")
+
+    ' Backend API Application
+    Container(apiApp, "API Application", "Container: Java and Spring boot", "Provides banking functionality via a JSON/HTTPS API", $sprite="java")
+
+    ' Databases
+    ContainerDb(dbRelational, "Relational Database", "Container: PostgreSQL", "stores user accounts, customer data,hashed authentication credential, and sensitive information", $sprite="PostgreSQL")
+    ContainerDb(dbNoSQL, "NoSQL Database", "Container: Cassandra", "Stores transaction logs and reports", $sprite="cassandra")
+}
+
+' Define external systems
+System_Ext(emailService, "Email System", "External system for sending notifications via email", $sprite="envelope")
+
+' Arrange elements in layers
+Lay_U(webapp, customer)
+Lay_U(webapp, admin)
+Lay_U(customerSPA, customer)
+Lay_U(adminSPA, admin)
+Lay_U(atmApp, customer)
+Lay_D(webapp, customerSPA)
+Lay_D(webapp, adminSPA)
+Lay_D(customerSPA, apiApp)
+Lay_D(adminSPA, apiApp)
+Lay_D(atmApp, apiApp)
+Lay_D(apiApp, dbRelational)
+Lay_D(apiApp, dbNoSQL)
+
+' Define relationships with clear labels and protocols
+Rel(customer, webapp, "Visits bankDomain.com", "HTTPS")
+Rel(admin, webapp, "Visits bankDomain.com", "HTTPS")
+
+Rel(webapp, customerSPA, "Delivers content to the customer's web browser")
+Rel(webapp, adminSPA, "Delivers content to the admin's web browser")
+
+Rel(customer, customerSPA, "Views account balances, performs transactions, and manages profile", "HTTPS")
+Rel(admin, adminSPA, "Generates reports on user activities and daily transactions", "HTTPS")
+
+Rel(customerSPA, apiApp, "Makes API calls to", "HTTPS")
+Rel(adminSPA, apiApp, "Makes API calls to", "HTTPS")
+
+Rel(customer, atmApp, "Authenticates with card and PIN for transactions, views account balances, withdraws and deposits cash", "Secure Channel")
+Rel(atmApp, apiApp, "Makes API calls to", "NDC")
+
+Rel(apiApp, dbRelational, "Reads from and writes to", "SQL/TCP")
+Rel(apiApp, dbNoSQL, "Reads from and writes to", "CQL")
+
+Rel(apiApp, emailService, "Sends emails using", "HTTPS")
+Rel(emailService, customer, "Sends notifications to ", "SMTP")
+@enduml

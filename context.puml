@@ -1,0 +1,30 @@
+@startuml
+!define C4Context
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Container.puml
+
+title  Bank System - Context Diagram
+
+' Define external users
+
+Person(admin, "Bank Administrator", "A bank employee with special access and permissions")
+Person(customer, "Customer", "A customer of the bank with a personal bank account")
+
+' Define internal systems (System layer)
+System(bankingSystem, "Bank System", "Handles authentication, transactions, and account management")
+System_Ext(emailService, "Email Service", "Delivers notifications via email")
+System_Ext(atmMachine, "ATM Machine", "Allows customers to perform transactions like withdrawals, deposits, and balance inquiries")
+
+ Lay_U(bankingSystem, admin)
+Lay_U(bankingSystem, customer)
+Lay_R(bankingSystem, atmMachine)
+
+
+
+' Define relationships
+Rel_D(customer, bankingSystem, "Views account balances, performs transactions, and manages profile")
+Rel(admin, bankingSystem, "Generates reports on user activities and daily transactions")
+Rel(bankingSystem, emailService, "Sends email using")
+Rel(emailService, customer, "Sends email to")
+Rel(customer, atmMachine, "Authenticates with card and PIN for transactions, views account balances, withdraws and deposits cash")
+Rel(atmMachine, bankingSystem, "Makes API calls to ")
+@enduml

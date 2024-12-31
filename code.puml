@@ -1,0 +1,317 @@
+@startuml
+' Services Layer
+package "Services Layer" {
+    class UserService {}
+    class AccountService {}
+    class TransactionService {}
+    class ReportService {}
+    class NotificationService {}
+    class AuditService {}
+    class AuthenticationService {}
+    class LogsService {}
+}
+
+
+
+
+
+package "Outbound Ports" {
+
+interface UserPort {
+    +saveUser(user: User): bool
++updateUser(user: User): bool
+    +getUserById(userId: int): User
+    +getUserByEmail(email: String): User
+    +deleteUser(userId: int): bool
+}
+
+interface AccountPort {
+    +saveAccount(account: Account): bool
++updateAccount(account: Account): bool
+    +getAccountById(accountId: int): Account
+    +getAccountsByUserId(userId: int): List<Account>
+    +deleteAccount(accountId: int): bool
+}
+
+interface TransactionPort {
+    +saveTransaction(transaction: Transaction): bool
+ +updateTransaction(transaction: Transaction): bool
+    +getTransactionById(transactionId: int): Transaction
+    +getTransactionsByUserId(userId: int): List<Transaction>
+}
+
+interface ReportPort {
+    +saveReport(report: Reports): bool
++updatereport(report: Reports): bool
+    +getReportById(reportId: int): Reports
+    +getReportsByUserId(userId: int): List<Reports>
+}
+
+interface NotificationServicePort {
+    +saveEmailNotification(notification: Notification): bool
+    
+}
+
+
+
+
+
+
+
+interface AuditPort {
+    +saveAuditLog(audit: Audit): bool
+    +getAuditLogsByEntity(entityType: String, entityId: int): List<Audit>
+    +getAuditLogById(auditId: int): Audit
+    +getFailedLogs(): List<Audit>
+}
+
+interface LogsPort {
+    +logInfo(message: String): void
+    +logWarning(message: String): void
+    +logError(message: String, errorDetails: String): void
+    +logDebug(message: String): void
+    +logFatal(message: String): void
+}
+
+}
+package "Inbound Ports" {
+
+interface UserUseCases {
+    +updateUser(user: User): bool
+        +deactivateUser(userId: int): bool
+        
++getUserById(userId: int): User
+        +getUserByEmail(email: String): User
++getUserByCardNumber(cardNumber: int): User
++createUser(user: User): bool
+}
+
+interface OnlineAuthenticationUseCases {
+    +loginOnline(email: String, password: String): User
+    +logoutOnline(userId: int): bool
+}
+
+interface ATMAuthenticationUseCases {
+    +loginWithCard(cardNumber: String, pin: int): User
+    +logoutATM(cardNumber: String): bool
+}
+
+interface AccountManagementUseCases {
+    +lockAccount(accountId: int): void
+        +unlockAccount(accountId: int): void
+        +deposit(accountId: int, amount: double): void
+        +withdraw(accountId: int, amount: double): bool
+        +getAccountBalance(accountId: int): double
+        +viewAccounts(userId: int): List<Account>
+        +viewTransactions(userId: int): List<Transaction>
++createAccount(account: Account): bool
+        +updateAccount(account: Account): bool
+        +deleteAccount(accountId: int): bool
+        +getAccountById(accountId: int): Account
+}
+
+interface TransactionUseCases {
+    +transferFunds(senderAccount: Account, receiverAccount: Account, amount: double): Transaction
+       
+        +validateTransaction(transactionId: int): bool
++getTransactionsByUserId(userId: int): List<Transaction>
+}
+
+interface ReportGenerationUseCases {
+    +generateReport(reportType: String, params: Map<String, Object>): Reports
+        +filterReports(startDate: LocalDate, endDate: LocalDate): List<Reports>
+        +categorizeReports(category: String): List<Reports>
+        +exportReport(reportId: int, format: String): bool
+  +getReportsByUserId(userId: int): List<Reports>
+}
+
+interface NotificationManagementUseCases {
+    +sendNotification(userId: int, message: String): bool
+    +getNotifications(userId: int): List<Notification>
+}
+
+interface AuditLoggingUseCases {
+   +logAction(entityType: String, entityId: int, action: String, details: String): void
+        +getAuditLogs(entityType: String, entityId: int): List<Audit>
+        +logFailure(entityType: String, entityId: int, action: String, details: String): void
+        +getFailedLogs(): List<Audit>
+}
+
+interface LogsUseCases {
+        +logInfo(message: String): void
+        +logWarning(message: String): void
+        +logError(message: String, errorDetails: String): void
+        +logDebug(message: String): void
+        +logFatal(message: String): void
+    }
+
+}
+
+package "Models" {
+  interface Subject {
+    +attach(observer: Observer): void
+    +detach(observer: Observer): void
+    +notify(): void
+  }
+
+  interface Observer {
+    +update(subject: Subject): void
+  }
+
+  class User {
+    +id: int
+    +name: String
+    +email: String
+    +phone: String
+    +address: String
+    +password: String
++role: String
+    +authenticate(password: String): bool
+  }
+
+  class Customer {
++role: String = "customer"
+    +account: List<Account>
+    
+  }
+
+  class Admin {
+   +role: String = "admin"
+  }
+
+  abstract class Account implements Subject {
+    +id: int
+    +isLocked: bool = false
+    +cardNumber: String
+    +pinCode: String
+    +accountNumber: String
+    +balance: double = 0.0
+    +createdAt: LocalDate
+    +userId: int
+    +deposit(amount: double): void
+    +withdraw(amount: double): bool
+    
+    +validateTransaction(amount: double): bool
+    
+    +validatePin(inputPin: String): bool
+    +hasSufficientBalance(amount: double): bool
+    +attach(observer: Observer): void
+    +detach(observer: Observer): void
+    +notify(): void
+  }
+
+  class SenderAccount {
+    +initiateTransfer(toAccount: ReceiverAccount, amount: double): Transaction
+  }
+
+  class ReceiverAccount {
+    +receiveTransfer(fromAccount: SenderAccount, amount: double): void
+  }
+
+  class Transaction implements Subject {
+    + id: int
+    + transactionType: String
+    + amount: double
+    + transactionDate: LocalDate
+    + fromAccount: SenderAccount
+    + toAccount: ReceiverAccount
+    + userId: int
+    + status: String
+    + errorMessage: String
+    + process(): bool
+    + validate(): bool
+    + getTransactionDetails(): String
+    + transferFundsTo(receiverAccount: Account, amount: double): Transaction
+    + receiveFundsFrom(senderAccount: Account, amount: double): void
+    + validatePin(inputPin: String): bool
+    + hasSufficientBalance(amount: double): bool
+    + attach(observer: Observer): void
+    + detach(observer: Observer): void
+    + notify(): void
+  }
+
+  class Reports {
+    +id: int
+    +reportType: String
+    +content: String
++category: String
+    +createdAt: LocalDate
+    +userId: int
+    +generateSummary(transactions: List<Transaction>): String
+    +export(format: String): bool
+    +filterReports(startDate: LocalDate, endDate: LocalDate): List<Reports>
+    +categorizeReports(category: String): List<Reports>
+    +sortReports(by: String): List<Reports>
+    +filterByUser(userId: int): List<Reports>
+  }
+
+  class Audit implements Observer {
+    +id: int
+    +entityType: String
+    +entityId: int
+    +action: String
+    +timestamp: LocalDateTime
+    +userId: int
+    +details: String
+    +logAction(entityType: String, entityId: int, action: String, details: String): void
+    +getAuditLogs(entityType: String, entityId: int): List<Audit>
+    +logFailure(entityType: String, entityId: int, action: String, details: String): void
+    +getFailedLogs(): List<Audit>
+    +update(subject: Subject): void
+  }
+
+  class Notification implements Observer {
+    +id: int
+    +message: String
+    +recipient: User
+    +timestamp: LocalDateTime
+    +send(): bool
+    +update(subject: Subject): void
+  }
+}
+
+' Relationships
+
+
+User <|-- Customer
+User <|-- Admin
+
+Account <|-- SenderAccount
+Account <|-- ReceiverAccount
+
+Customer "1" o-- "0..*" Account : owns
+Account "1" o-left- "0..*" Transaction : involved_in
+
+Admin "1" -right- "0..*" Reports : generates
+Reports "0..*" -- "0..*" Transaction : summarizes
+Transaction "1" *-- "1" SenderAccount : from_account
+Transaction "1" *-- "1" ReceiverAccount : to_account
+
+Audit "0..*" -- "1" User : created_by
+Audit "0..*" -- "0..*" Transaction : logs
+Audit "0..*" -- "0..*" Reports : logs
+Audit "0..*" -- "0..*" Account : logs
+
+Notification "0..*" -- "1" User : sent_to
+
+
+
+' Relationships to inbound and outbound ports
+UserUseCases <|-- UserService
+OnlineAuthenticationUseCases <|-- AuthenticationService
+ATMAuthenticationUseCases <|-- AuthenticationService
+AccountManagementUseCases <|-- AccountService
+TransactionUseCases <|-- TransactionService
+ReportGenerationUseCases <|-- ReportService
+NotificationManagementUseCases <|-- NotificationService
+AuditLoggingUseCases <|-- AuditService
+LogsUseCases <|-- LogsService
+
+UserService o--> UserPort
+AccountService o--> AccountPort
+TransactionService o--> TransactionPort
+ReportService o--> ReportPort
+NotificationService o--> NotificationServicePort
+AuditService o--> AuditPort
+LogsService o--> LogsPort
+@enduml
